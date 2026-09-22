@@ -4,6 +4,7 @@ import base64
 import json
 import re
 import time
+import unicodedata
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -126,6 +127,38 @@ class GitHubAppClient:
         self.last_diagnostics.append(f"Arquivo {path} não foi localizado nos repositórios selecionados.")
         return []
 
+    def create_approved_pull_request(self, repository: str, base_branch: str, title: str,
+                                     body: str, changes: list[tuple[str, str]]) -> str:
+        """Aplica alterações já aprovadas exclusivamente numa branch nova e abre um PR."""
+        if not self.enabled:
+            raise RuntimeError("A integração GitHub ainda não foi conectada.")
+        if not changes or len(changes) > 8:
+            raise ValueError("Um Pull Request precisa ter entre 1 e 8 alterações aprovadas.")
+        for path, _content in changes:
+            _validate_change_path(path)
+        token = self._installation_token()
+        branch = _safe_branch_name(title)
+        base = self._request(f"/repos/{repository}/git/ref/heads/{quote(base_branch, safe='')}", token)
+        base_sha = base["object"]["sha"]
+        self._request(f"/repos/{repository}/git/refs", token, method="POST",
+                      payload={"ref": f"refs/heads/{branch}", "sha": base_sha})
+        for path, content in changes:
+            payload: dict[str, Any] = {
+                "message": f"{title}: {path}", "content": base64.b64encode(content.encode("utf-8")).decode("ascii"),
+                "branch": branch,
+            }
+            try:
+                existing = self._request(f"/repos/{repository}/contents/{quote(path, safe='/')}?ref={quote(base_branch, safe='')}", token)
+                if existing.get("sha"):
+                    payload["sha"] = existing["sha"]
+            except RuntimeError:
+                # Arquivo novo é permitido; a API valida a existência da branch e permissões.
+                pass
+            self._request(f"/repos/{repository}/contents/{quote(path, safe='/')}", token, method="PUT", payload=payload)
+        pull = self._request(f"/repos/{repository}/pulls", token, method="POST",
+                             payload={"title": title[:120], "head": branch, "base": base_branch, "body": body[:6000]})
+        return str(pull["html_url"])
+
     def _search_code(self, repo: dict[str, Any], token: str, prompt: str) -> list[RepositoryFile]:
         """Pesquisa conteúdo e caminho; a árvore abaixo continua como fallback."""
         terms = _content_terms(prompt)
@@ -179,13 +212,14 @@ class GitHubAppClient:
             raise RuntimeError("Há mais de uma instalação da GitHub App. Defina GITHUB_APP_INSTALLATION_ID no Render.")
         return str(installations[0]["id"])
 
-    def _request(self, path: str, token: str, method: str = "GET") -> Any:
+    def _request(self, path: str, token: str, method: str = "GET", payload: Any = None) -> Any:
         request = Request(f"{self.api}{path}", method=method, headers={
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {token}",
             "X-GitHub-Api-Version": "2022-11-28",
             "User-Agent": "my-agent-web",
-        })
+            **({"Content-Type": "application/json"} if payload is not None else {}),
+        }, data=json.dumps(payload).encode("utf-8") if payload is not None else None)
         try:
             with urlopen(request, timeout=20) as response:
                 return json.loads(response.read().decode("utf-8"))
@@ -312,6 +346,19 @@ def _visible_text_samples(content: str, limit: int = 4) -> list[str]:
             if len(samples) >= limit:
                 return samples
     return samples
+
+
+def _safe_branch_name(title: str) -> str:
+    ascii_title = unicodedata.normalize("NFKD", title).encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_title.lower()).strip("-")[:48] or "alteracao"
+    return f"my-agent/{slug}-{int(time.time())}"
+
+
+def _validate_change_path(path: str) -> None:
+    normalized = path.strip().lstrip("/")
+    blocked = (".env", ".pem", ".key", "id_rsa", ".github/workflows/")
+    if not normalized or ".." in normalized.split("/") or any(part in normalized.lower() for part in blocked):
+        raise ValueError("A alteração inclui um arquivo sensível ou caminho inválido.")
 
 
 def _text_source_directories(repo: dict[str, Any], tree: list[dict[str, Any]]) -> list[RepositoryFile]:

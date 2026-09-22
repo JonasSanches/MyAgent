@@ -14,7 +14,7 @@ from dev_agent.config import Config
 from dev_agent.core import PersonalDevAgent
 from dev_agent.server import AgentWebService, _is_directory_analysis, _is_file_analysis
 from dev_agent.github import RepositoryFile
-from dev_agent.github import _content_terms, _directory_hint, _file_hint, _needs_text_source_map, _project_hint, _source_summary, _text_source_directories, _translation_confidence
+from dev_agent.github import _content_terms, _directory_hint, _file_hint, _needs_text_source_map, _project_hint, _safe_branch_name, _source_summary, _text_source_directories, _translation_confidence, _validate_change_path
 from dev_agent.security import redact_secrets
 
 
@@ -278,6 +278,13 @@ class AgentTest(unittest.TestCase):
         self.assertIn("Abrir menu", summary)
         self.assertIn("Entrar", summary)
         self.assertNotIn("“react”", summary)
+
+    def test_pull_requests_always_use_agent_branch_prefix(self):
+        self.assertTrue(_safe_branch_name("Corrigir título").startswith("my-agent/corrigir-titulo-"))
+
+    def test_pull_request_rejects_sensitive_file_paths(self):
+        with self.assertRaisesRegex(ValueError, "sensível"):
+            _validate_change_path(".env")
 
 
 if __name__ == "__main__":
