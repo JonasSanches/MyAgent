@@ -52,6 +52,7 @@ class AgentWebService:
                 "routine_model": self.agent.config.routine_model,
                 "expert_model": self.agent.config.model,
             },
+            "maturity": self.agent.memory.maturity_stats(),
         }
 
     def chat(self, message: str, authorize_codex: bool = False, images: Optional[list[str]] = None) -> Dict[str, Any]:

@@ -45,6 +45,9 @@ async function refresh() {
   const state = await api('/api/state');
   $('#usage').textContent = `${state.usage.requests}/${state.usage.request_limit} consultas · ${state.usage.tokens}/${state.usage.token_budget} tokens`;
   $('#knowledge').innerHTML = state.knowledge.length ? state.knowledge.map(item => `<div class="list-item">${escapeHtml(item.title)}<small>${item.success_count} validação(ões)</small></div>`).join('') : '<p class="muted">Nenhum conhecimento permanente.</p>';
+  const maturity = state.maturity;
+  const review = maturity.ready_to_review_routine ? '<p class="maturity-ready">Base madura: revise o uso do Terra.</p>' : '<p class="muted">Acompanhe antes de mudar o roteamento.</p>';
+  $('#maturity').innerHTML = `<div class="list-item"><strong>${maturity.local_rate}%</strong><small>resolvidas pela própria base</small></div><div class="list-item"><strong>${maturity.local_solutions}</strong><small>soluções locais · ${maturity.external_consultations} consultas externas</small></div>${review}`;
   $('#history').innerHTML = state.history.length ? state.history.map(item => `<div class="list-item">${escapeHtml(item.prompt)}<small>${item.source} · ${item.status}</small></div>`).join('') : '<p class="muted">Nenhuma tentativa ainda.</p>';
 }
 async function startSession() {

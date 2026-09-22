@@ -109,6 +109,8 @@ Depois de verificar o conhecimento permanente, o agente escolhe a próxima camad
 
 Isso mantém o modelo open-source fora do servidor de 512 MB do Render. Um modelo local exigiria uma máquina maior; o roteamento reduz chamadas desnecessárias sem rebaixar tarefas críticas. Toda solução, independentemente da camada, só vira conhecimento após teste aprovado e sua aprovação explícita.
 
+O painel também mede maturidade: taxa de soluções reutilizadas da própria base, consultas externas e testes verificados. Quando houver pelo menos 10 conhecimentos permanentes, 20 tarefas roteadas e 70% de resolução local, ele recomenda revisar o uso do Terra; essa mudança nunca acontece automaticamente.
+
 ## Arquitetura
 
 - `core.py`: orquestra memória, habilidades, orçamento e Codex.

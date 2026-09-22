@@ -286,6 +286,27 @@ class Memory:
             rows = connection.execute("SELECT * FROM knowledge ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
         return [KnowledgeItem(**dict(row)) for row in rows]
 
+    def maturity_stats(self) -> dict[str, int | bool]:
+        """Indicadores simples, explicáveis e baseados somente em tentativas reais."""
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT source, status FROM attempts WHERE source IN ('knowledge', 'routine', 'codex')"
+            ).fetchall()
+            knowledge_count = int(connection.execute("SELECT COUNT(*) FROM knowledge").fetchone()[0])
+        local = sum(row["source"] == "knowledge" and row["status"] == "verified" for row in rows)
+        remote = sum(row["source"] in {"routine", "codex"} for row in rows)
+        verified = sum(row["status"] in {"verified", "learned", "verified_not_learned"} for row in rows)
+        total = local + remote
+        local_rate = round((local / total) * 100) if total else 0
+        return {
+            "knowledge_count": knowledge_count,
+            "local_solutions": local,
+            "external_consultations": remote,
+            "verified_attempts": verified,
+            "local_rate": local_rate,
+            "ready_to_review_routine": knowledge_count >= 10 and total >= 20 and local_rate >= 70,
+        }
+
 
 def _terms(text: str) -> set[str]:
     return {"".join(character for character in word.lower() if character.isalnum()) for word in text.split()

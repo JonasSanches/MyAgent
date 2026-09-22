@@ -180,6 +180,16 @@ class AgentTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "DEV_AGENT_WORKSPACE"):
             service._safe_workdir("../fora")
 
+    def test_maturity_tracks_local_reuse_separately_from_external_models(self):
+        knowledge_id = self.agent.memory.add_knowledge("Formato", "formatar nome", "Use title.", "true")
+        reused = self.agent.memory.create_attempt("formatar nome", "Use title.", "knowledge", knowledge_id)
+        self.agent.memory.record_test_result(reused.id, True, "ok", "true")
+        self.agent.memory.create_attempt("tarefa nova", "resposta", "routine")
+        stats = self.agent.memory.maturity_stats()
+        self.assertEqual(stats["local_solutions"], 1)
+        self.assertEqual(stats["external_consultations"], 1)
+        self.assertEqual(stats["local_rate"], 50)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -7,3 +7,4 @@
 #login-dialog input { border: 1px solid #d9d6cf; border-radius: 8px; padding: 10px; font: inherit; }
 .error { color: #a12626; min-height: 1.2em; }
 .header-actions { display: flex; gap: 8px; }
+.maturity-ready { color: #126250; font-size: 12px; font-weight: 700; }
