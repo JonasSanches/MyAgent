@@ -14,7 +14,7 @@ from dev_agent.config import Config
 from dev_agent.core import PersonalDevAgent
 from dev_agent.server import AgentWebService
 from dev_agent.github import RepositoryFile
-from dev_agent.github import _content_terms, _project_hint, _translation_confidence
+from dev_agent.github import _content_terms, _project_hint, _text_source_directories, _translation_confidence
 from dev_agent.security import redact_secrets
 
 
@@ -219,6 +219,17 @@ class AgentTest(unittest.TestCase):
     def test_translation_candidate_without_evidence_has_zero_confidence(self):
         score, _ = _translation_confidence("public/banner.jpg", "")
         self.assertEqual(score, 0)
+
+    def test_translation_fallback_maps_interface_source_directories(self):
+        repo = {"full_name": "ariane/vendamais", "html_url": "https://github.com/ariane/vendamais", "default_branch": "main"}
+        tree = [
+            {"type": "blob", "path": "apps/web/src/components/Header.tsx"},
+            {"type": "blob", "path": "apps/web/src/pages/Home.tsx"},
+            {"type": "blob", "path": "apps/web/public/logo.png"},
+        ]
+        directories = _text_source_directories(repo, tree)
+        self.assertEqual(directories[0].path, "apps/web/src/")
+        self.assertEqual(directories[0].kind, "directory")
 
 
 if __name__ == "__main__":

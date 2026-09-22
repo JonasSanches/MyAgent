@@ -84,8 +84,10 @@ class AgentWebService:
                 audit = "\n".join(f"- {item}" for item in self.github.last_diagnostics)
                 solution = "Não encontrei arquivos correspondentes nos repositórios autorizados.\n\nBusca auditada:\n" + (audit or "- Nenhum repositório foi retornado pela instalação GitHub.")
             attempt = self.agent.memory.create_attempt(message, solution, "github", status="completed")
+            mapped_directories = any(item.kind == "directory" for item in files)
             return {"kind": "solution", "attempt_id": attempt.id, "source": "github",
-                    "message": "Busca somente-leitura concluída no GitHub; candidatos ordenados por evidências de tradução.", "solution": solution}
+                    "message": ("Não encontrei um catálogo de tradução explícito; mapeei diretórios de código que podem carregar os textos da interface."
+                                if mapped_directories else "Busca somente-leitura concluída no GitHub; candidatos ordenados por evidências de tradução."), "solution": solution}
         if result.route == "needs_codex":
             route = self.agent.specialist_route(message, safe_images, has_link)
             return {

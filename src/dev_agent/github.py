@@ -19,6 +19,7 @@ class RepositoryFile:
     branch: str = "main"
     confidence: int = 0
     reason: str = ""
+    kind: str = "file"
 
 
 class GitHubAppClient:
@@ -49,21 +50,26 @@ class GitHubAppClient:
             if matched_repositories:
                 repositories = matched_repositories
         matches: list[RepositoryFile] = []
+        source_directories: list[RepositoryFile] = []
         for repo in repositories:
             for item in self._search_code(repo, token, prompt):
-                if item.url not in {existing.url for existing in matches}:
+                if item.url not in {existing.url for existing in matches} and len(matches) < limit:
                     matches.append(item)
-                    if len(matches) >= limit:
-                        return matches
             tree = self._request(f"/repos/{repo['full_name']}/git/trees/{quote(repo['default_branch'], safe='')}?recursive=1", token)
             self.last_diagnostics.append(f"{repo['full_name']}: {len(tree.get('tree', []))} arquivos examinados na branch {repo['default_branch']}.")
+            source_directories.extend(_text_source_directories(repo, tree.get("tree", [])))
             for item in tree.get("tree", []):
                 path = item.get("path", "")
-                if item.get("type") == "blob" and _matches(path, prompt):
+                if item.get("type") == "blob" and _matches(path, prompt) and len(matches) < limit:
                     matches.append(RepositoryFile(repo["full_name"], path, f"{repo['html_url']}/blob/{repo['default_branch']}/{path}", repo["default_branch"]))
-                    if len(matches) >= limit:
-                        return self._rank_translation_candidates(matches, token, prompt)
-        return self._rank_translation_candidates(matches, token, prompt)
+        ranked = self._rank_translation_candidates(matches, token, prompt)
+        if ranked or not _is_translation_request(prompt):
+            return ranked
+        # Se não existe um catálogo óbvio de traduções, ainda é útil mostrar de
+        # onde a interface pode estar lendo textos. Isso evita concluir que o
+        # projeto não tem tradução apenas pelo nome dos arquivos.
+        self.last_diagnostics.append("Nenhum catálogo de tradução identificado; diretórios de código foram mapeados como próxima pista.")
+        return source_directories[:limit]
 
     def _search_code(self, repo: dict[str, Any], token: str, prompt: str) -> list[RepositoryFile]:
         """Pesquisa conteúdo e caminho; a árvore abaixo continua como fallback."""
@@ -81,7 +87,7 @@ class GitHubAppClient:
         return matches
 
     def _rank_translation_candidates(self, files: list[RepositoryFile], token: str, prompt: str) -> list[RepositoryFile]:
-        if not any(word in prompt.lower() for word in ("trad", "ingl", "english", "idioma", "locale")):
+        if not _is_translation_request(prompt):
             return files
         ranked: list[RepositoryFile] = []
         for item in files[:12]:
@@ -149,7 +155,7 @@ def _project_hint(prompt: str) -> str:
 def _matches(path: str, prompt: str) -> bool:
     normalized = "".join(char for char in prompt.lower() if char.isalnum() or char in " /._-")
     path_lower = path.lower()
-    translation_request = any(word in normalized for word in ("traducao", "translation", "ingles", "english", "idioma"))
+    translation_request = _is_translation_request(normalized)
     if translation_request:
         return any(marker in path_lower for marker in ("i18n", "locale", "lang", "translation", "traducao", "/en.", "/en/", "english"))
     terms = [word for word in normalized.split() if len(word) >= 4]
@@ -161,6 +167,40 @@ def _content_terms(prompt: str) -> list[str]:
     if any(word in normalized for word in ("trad", "ingl", "english", "idioma", "locale")):
         return ["translation", "traducao", "i18n", "locale", "english", "pt-br", "en-us"]
     return [word for word in normalized.split() if len(word) >= 4][:5]
+
+
+def _is_translation_request(prompt: str) -> bool:
+    normalized = prompt.lower()
+    return any(word in normalized for word in ("trad", "ingl", "english", "idioma", "locale"))
+
+
+def _text_source_directories(repo: dict[str, Any], tree: list[dict[str, Any]]) -> list[RepositoryFile]:
+    """Agrupa diretórios que normalmente concentram textos exibidos na interface."""
+    extensions = {".ts", ".tsx", ".js", ".jsx", ".vue", ".svelte", ".html", ".php", ".py", ".rb", ".json"}
+    markers = ("/src/", "/app/", "/pages/", "/components/", "/views/", "/templates/", "/resources/", "/web/")
+    ignored = ("node_modules/", "/public/", "/assets/", "/images/", "/pdf-", "/vendor/")
+    directories: dict[str, int] = {}
+    for item in tree:
+        path = item.get("path", "")
+        lower = path.lower()
+        if item.get("type") != "blob" or any(part in lower for part in ignored):
+            continue
+        if not any(lower.endswith(extension) for extension in extensions):
+            continue
+        if not any(marker in f"/{lower}" for marker in markers):
+            continue
+        parts = path.split("/")
+        directory = "/".join(parts[:min(len(parts) - 1, 3)])
+        if directory:
+            directories[directory] = directories.get(directory, 0) + 1
+    ordered = sorted(directories.items(), key=lambda item: (-item[1], item[0]))
+    return [
+        RepositoryFile(
+            repo["full_name"], directory + "/", f"{repo['html_url']}/tree/{repo['default_branch']}/{directory}",
+            repo["default_branch"], min(80, 30 + count * 3), f"{count} arquivos de código que podem carregar textos da interface", "directory",
+        )
+        for directory, count in ordered
+    ]
 
 
 def _translation_confidence(path: str, content: str) -> tuple[int, str]:
