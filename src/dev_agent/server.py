@@ -289,6 +289,10 @@ def _validate_images(images: list[str]) -> list[str]:
 
 def _is_repository_lookup(message: str) -> bool:
     words = message.lower()
+    # Pedidos de plano ou mudança precisam seguir para o modelo; citar um
+    # repositório fornece contexto, não transforma a tarefa em busca de arquivo.
+    if any(term in words for term in ("plano", "alterar", "alteração", "mudar", "criar", "corrigir", "implementar", "refatorar")):
+        return False
     return any(term in words for term in ("arquivo", "repositório", "repositorio", "projeto", "localize", "localizar", "encontre", "encontrar"))
 
 

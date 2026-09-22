@@ -12,7 +12,7 @@ from dev_agent.codex import CodexResult
 from dev_agent.auth import SessionAuth
 from dev_agent.config import Config
 from dev_agent.core import PersonalDevAgent
-from dev_agent.server import AgentWebService, _is_directory_analysis, _is_file_analysis
+from dev_agent.server import AgentWebService, _is_directory_analysis, _is_file_analysis, _is_repository_lookup
 from dev_agent.github import RepositoryFile
 from dev_agent.github import _content_terms, _directory_hint, _file_hint, _needs_text_source_map, _project_hint, _safe_branch_name, _source_summary, _text_source_directories, _translation_confidence, _validate_change_path
 from dev_agent.security import redact_secrets
@@ -285,6 +285,9 @@ class AgentTest(unittest.TestCase):
     def test_pull_request_rejects_sensitive_file_paths(self):
         with self.assertRaisesRegex(ValueError, "sensível"):
             _validate_change_path(".env")
+
+    def test_change_plan_is_not_mistaken_for_a_file_lookup(self):
+        self.assertFalse(_is_repository_lookup("No projeto Venda-SaaS, crie um plano para alterar o título."))
 
 
 if __name__ == "__main__":
