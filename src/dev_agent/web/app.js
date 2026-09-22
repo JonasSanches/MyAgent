@@ -94,6 +94,22 @@ $('#images').onchange = async (event) => {
   if (selectedImages.length + files.length > 4 || files.some(file => file.size > 5 * 1024 * 1024)) { addMessage('Use no máximo 4 prints PNG, JPEG ou WebP de até 5 MB.'); return; }
   try { selectedImages.push(...await Promise.all(files.map(readImage))); renderAttachments(); } catch (_) { addMessage('Não consegui ler o print selecionado.'); }
 };
+$('#prompt').addEventListener('paste', async (event) => {
+  const images = [...event.clipboardData.items]
+    .filter(item => item.type.startsWith('image/'))
+    .map(item => item.getAsFile())
+    .filter(Boolean);
+  if (!images.length) return;
+  event.preventDefault();
+  if (selectedImages.length + images.length > 4 || images.some(file => file.size > 5 * 1024 * 1024)) {
+    addMessage('Use no máximo 4 prints PNG, JPEG ou WebP de até aproximadamente 5 MB.');
+    return;
+  }
+  try {
+    selectedImages.push(...await Promise.all(images.map(readImage)));
+    renderAttachments();
+  } catch (_) { addMessage('Não consegui ler o print colado.'); }
+});
 $('#toggle-height').onclick = () => {
   const prompt = $('#prompt'); const expanded = prompt.classList.toggle('expanded');
   prompt.style.height = expanded ? '240px' : '64px';

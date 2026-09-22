@@ -286,6 +286,11 @@ class AgentTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "sensível"):
             _validate_change_path(".env")
 
+    def test_web_client_has_clipboard_image_support(self):
+        client = (Path(__file__).parents[1] / "src" / "dev_agent" / "web" / "app.js").read_text()
+        self.assertIn("clipboardData.items", client)
+        self.assertIn("addEventListener('paste'", client)
+
     def test_change_plan_is_not_mistaken_for_a_file_lookup(self):
         self.assertFalse(_is_repository_lookup("No projeto Venda-SaaS, crie um plano para alterar o título."))
 
