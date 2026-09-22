@@ -14,7 +14,7 @@ from dev_agent.config import Config
 from dev_agent.core import PersonalDevAgent
 from dev_agent.server import AgentWebService
 from dev_agent.github import RepositoryFile
-from dev_agent.github import _content_terms, _project_hint, _text_source_directories, _translation_confidence
+from dev_agent.github import _content_terms, _needs_text_source_map, _project_hint, _text_source_directories, _translation_confidence
 from dev_agent.security import redact_secrets
 
 
@@ -235,6 +235,9 @@ class AgentTest(unittest.TestCase):
         repo = {"full_name": "ariane/vendamais", "html_url": "https://github.com/ariane/vendamais", "default_branch": "main"}
         directories = _text_source_directories(repo, [{"type": "blob", "path": "site/conteudo/home.html"}])
         self.assertEqual(directories[0].path, "site/conteudo/")
+
+    def test_text_loading_request_activates_source_map(self):
+        self.assertTrue(_needs_text_source_map("Localize onde os textos exibidos ao usuário são carregados"))
 
 
 if __name__ == "__main__":

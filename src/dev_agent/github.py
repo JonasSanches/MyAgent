@@ -63,12 +63,12 @@ class GitHubAppClient:
                 if item.get("type") == "blob" and _matches(path, prompt) and len(matches) < limit:
                     matches.append(RepositoryFile(repo["full_name"], path, f"{repo['html_url']}/blob/{repo['default_branch']}/{path}", repo["default_branch"]))
         ranked = self._rank_translation_candidates(matches, token, prompt)
-        if ranked or not _is_translation_request(prompt):
+        if ranked or not _needs_text_source_map(prompt):
             return ranked
         # Se não existe um catálogo óbvio de traduções, ainda é útil mostrar de
         # onde a interface pode estar lendo textos. Isso evita concluir que o
         # projeto não tem tradução apenas pelo nome dos arquivos.
-        self.last_diagnostics.append("Nenhum catálogo de tradução identificado; diretórios de código foram mapeados como próxima pista.")
+        self.last_diagnostics.append("Nenhum arquivo específico foi identificado; diretórios de código foram mapeados como próxima pista.")
         return source_directories[:limit]
 
     def _search_code(self, repo: dict[str, Any], token: str, prompt: str) -> list[RepositoryFile]:
@@ -172,6 +172,14 @@ def _content_terms(prompt: str) -> list[str]:
 def _is_translation_request(prompt: str) -> bool:
     normalized = prompt.lower()
     return any(word in normalized for word in ("trad", "ingl", "english", "idioma", "locale"))
+
+
+def _needs_text_source_map(prompt: str) -> bool:
+    normalized = prompt.lower()
+    return _is_translation_request(prompt) or (
+        any(term in normalized for term in ("texto", "textos", "mensagem", "mensagens", "conteúdo", "conteudo"))
+        and any(term in normalized for term in ("carrega", "exib", "usuário", "usuario", "interface", "tela"))
+    )
 
 
 def _text_source_directories(repo: dict[str, Any], tree: list[dict[str, Any]]) -> list[RepositoryFile]:
