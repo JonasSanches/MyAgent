@@ -12,7 +12,7 @@ from dev_agent.codex import CodexResult
 from dev_agent.auth import SessionAuth
 from dev_agent.config import Config
 from dev_agent.core import PersonalDevAgent
-from dev_agent.server import AgentWebService
+from dev_agent.server import AgentWebService, _is_directory_analysis
 from dev_agent.github import RepositoryFile
 from dev_agent.github import _content_terms, _needs_text_source_map, _project_hint, _text_source_directories, _translation_confidence
 from dev_agent.security import redact_secrets
@@ -238,6 +238,9 @@ class AgentTest(unittest.TestCase):
 
     def test_text_loading_request_activates_source_map(self):
         self.assertTrue(_needs_text_source_map("Localize onde os textos exibidos ao usuário são carregados"))
+
+    def test_explicit_directory_analysis_is_detected(self):
+        self.assertTrue(_is_directory_analysis("No projeto Venda-SaaS, analise apenas apps/web/app/"))
 
 
 if __name__ == "__main__":

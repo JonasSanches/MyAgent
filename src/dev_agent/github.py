@@ -71,6 +71,35 @@ class GitHubAppClient:
         self.last_diagnostics.append("Nenhum arquivo específico foi identificado; diretórios de código foram mapeados como próxima pista.")
         return source_directories[:limit]
 
+    def analyze_directory(self, prompt: str, limit: int = 30) -> list[RepositoryFile]:
+        """Lista arquivos de uma pasta indicada, com papéis inferidos localmente."""
+        directory = _directory_hint(prompt)
+        if not directory:
+            return []
+        token = self._installation_token()
+        self.last_diagnostics = []
+        repositories = self._request("/installation/repositories?per_page=100", token).get("repositories", [])
+        project_hint = _project_hint(prompt)
+        selected = [repo for repo in repositories if project_hint in repo["name"].lower()] if project_hint else repositories
+        if not selected:
+            selected = repositories
+        results: list[RepositoryFile] = []
+        for repo in selected:
+            tree = self._request(f"/repos/{repo['full_name']}/git/trees/{quote(repo['default_branch'], safe='')}?recursive=1", token)
+            prefix = directory.lower().rstrip("/") + "/"
+            for item in tree.get("tree", []):
+                path = item.get("path", "")
+                if item.get("type") != "blob" or not path.lower().startswith(prefix) or not _is_text_source_file(path):
+                    continue
+                results.append(RepositoryFile(
+                    repo["full_name"], path, f"{repo['html_url']}/blob/{repo['default_branch']}/{path}", repo["default_branch"],
+                    0, _file_role(path), "analysis",
+                ))
+                if len(results) >= limit:
+                    break
+            self.last_diagnostics.append(f"{repo['full_name']}: pasta {directory}/ analisada; {len(results)} arquivos de código/texto listados.")
+        return results
+
     def _search_code(self, repo: dict[str, Any], token: str, prompt: str) -> list[RepositoryFile]:
         """Pesquisa conteúdo e caminho; a árvore abaixo continua como fallback."""
         terms = _content_terms(prompt)
@@ -180,6 +209,36 @@ def _needs_text_source_map(prompt: str) -> bool:
         any(term in normalized for term in ("texto", "textos", "mensagem", "mensagens", "conteúdo", "conteudo"))
         and any(term in normalized for term in ("carrega", "exib", "usuário", "usuario", "interface", "tela"))
     )
+
+
+def _directory_hint(prompt: str) -> str:
+    """Extrai um caminho de pasta explícito, como apps/web/app/."""
+    match = re.search(r"(?<!\S)((?:[\w.-]+/){1,}[\w.-]+/?)(?!\S)", prompt)
+    return match.group(1).strip("/") if match else ""
+
+
+def _is_text_source_file(path: str) -> bool:
+    lower = path.lower()
+    extensions = (".ts", ".tsx", ".js", ".jsx", ".vue", ".svelte", ".html", ".php", ".json", ".md", ".css", ".scss")
+    return lower.endswith(extensions) and not any(part in lower for part in ("/public/", "/assets/", "/images/", "/node_modules/"))
+
+
+def _file_role(path: str) -> str:
+    name = path.rsplit("/", 1)[-1].lower()
+    lower = path.lower()
+    if name.startswith("page."):
+        return "página da interface; provável origem de textos visíveis"
+    if name.startswith("layout."):
+        return "layout compartilhado da interface"
+    if name.startswith("loading.") or name.startswith("error."):
+        return "estado de carregamento ou erro exibido ao usuário"
+    if name.startswith("route.") or "/api/" in lower:
+        return "rota/API; pode fornecer dados, não costuma renderizar textos diretamente"
+    if any(marker in lower for marker in ("i18n", "locale", "translation", "traducao")):
+        return "configuração ou catálogo de tradução"
+    if "/components/" in lower:
+        return "componente reutilizável da interface"
+    return "arquivo de código/texto a analisar na interface"
 
 
 def _text_source_directories(repo: dict[str, Any], tree: list[dict[str, Any]]) -> list[RepositoryFile]:

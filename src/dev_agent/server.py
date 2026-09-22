@@ -75,9 +75,12 @@ class AgentWebService:
                     "message": "Para procurar nos seus projetos, conecte a GitHub App com acesso somente-leitura.",
                     "solution": "Nenhum modelo externo foi consultado e nenhum crédito foi usado.",
                 }
-            files = self.github.find_files(message)
+            directory_analysis = _is_directory_analysis(message)
+            files = self.github.analyze_directory(message) if directory_analysis else self.github.find_files(message)
             solution = "\n".join(
-                f"- {item.repository}: {item.path} — {item.confidence}% provável ({item.reason})\n  {item.url}"
+                (f"- {item.repository}: {item.path} — {item.reason}\n  {item.url}"
+                 if item.kind == "analysis" else
+                 f"- {item.repository}: {item.path} — {item.confidence}% provável ({item.reason})\n  {item.url}")
                 for item in files
             )
             if not solution:
@@ -86,7 +89,9 @@ class AgentWebService:
             attempt = self.agent.memory.create_attempt(message, solution, "github", status="completed")
             mapped_directories = any(item.kind == "directory" for item in files)
             return {"kind": "solution", "attempt_id": attempt.id, "source": "github",
-                    "message": ("Não encontrei um arquivo específico; mapeei diretórios de código que podem carregar os textos da interface."
+                    "message": ("Análise somente-leitura da pasta concluída; arquivos listados por provável papel na interface."
+                                if directory_analysis else
+                                "Não encontrei um arquivo específico; mapeei diretórios de código que podem carregar os textos da interface."
                                 if mapped_directories else "Busca somente-leitura concluída no GitHub; candidatos ordenados por evidências de tradução."), "solution": solution}
         if result.route == "needs_codex":
             route = self.agent.specialist_route(message, safe_images, has_link)
@@ -279,6 +284,12 @@ def _validate_images(images: list[str]) -> list[str]:
 def _is_repository_lookup(message: str) -> bool:
     words = message.lower()
     return any(term in words for term in ("arquivo", "repositório", "repositorio", "projeto", "localize", "localizar", "encontre", "encontrar"))
+
+
+def _is_directory_analysis(message: str) -> bool:
+    has_analysis_intent = any(term in message.lower() for term in ("analise", "analisar", "explique", "listar"))
+    has_directory = bool(re.search(r"(?<!\S)(?:[\w.-]+/){1,}[\w.-]+/?(?!\S)", message))
+    return has_analysis_intent and has_directory
 
 
 def main() -> int:
