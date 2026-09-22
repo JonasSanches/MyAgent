@@ -78,7 +78,8 @@ class AgentWebService:
             files = self.github.find_files(message)
             solution = "\n".join(f"- {item.repository}: {item.path}\n  {item.url}" for item in files)
             if not solution:
-                solution = "Não encontrei arquivos correspondentes nos repositórios autorizados."
+                audit = "\n".join(f"- {item}" for item in self.github.last_diagnostics)
+                solution = "Não encontrei arquivos correspondentes nos repositórios autorizados.\n\nBusca auditada:\n" + (audit or "- Nenhum repositório foi retornado pela instalação GitHub.")
             attempt = self.agent.memory.create_attempt(message, solution, "github", status="completed")
             return {"kind": "solution", "attempt_id": attempt.id, "source": "github",
                     "message": "Busca somente-leitura concluída no GitHub.", "solution": solution}

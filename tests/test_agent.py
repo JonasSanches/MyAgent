@@ -196,6 +196,7 @@ class AgentTest(unittest.TestCase):
         service = AgentWebService(self.agent)
         class FakeGitHub:
             enabled = True
+            last_diagnostics = []
             def find_files(self, _prompt):
                 return [RepositoryFile("ariane/vendamais", "locales/en.json", "https://github.com/ariane/vendamais/blob/main/locales/en.json")]
         service.github = FakeGitHub()

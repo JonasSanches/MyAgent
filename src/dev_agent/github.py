@@ -27,6 +27,7 @@ class GitHubAppClient:
         self.app_id = app_id
         self.installation_id = installation_id
         self.private_key_b64 = private_key_b64
+        self.last_diagnostics: list[str] = []
 
     @property
     def enabled(self) -> bool:
@@ -36,6 +37,7 @@ class GitHubAppClient:
         if not self.enabled:
             raise RuntimeError("A integração GitHub ainda não foi conectada.")
         token = self._installation_token()
+        self.last_diagnostics = []
         repositories = self._request("/installation/repositories?per_page=100", token).get("repositories", [])
         project_hint = _project_hint(prompt)
         if project_hint:
@@ -51,6 +53,7 @@ class GitHubAppClient:
                     if len(matches) >= limit:
                         return matches
             tree = self._request(f"/repos/{repo['full_name']}/git/trees/{quote(repo['default_branch'], safe='')}?recursive=1", token)
+            self.last_diagnostics.append(f"{repo['full_name']}: {len(tree.get('tree', []))} arquivos examinados na branch {repo['default_branch']}.")
             for item in tree.get("tree", []):
                 path = item.get("path", "")
                 if item.get("type") == "blob" and _matches(path, prompt):
@@ -67,7 +70,8 @@ class GitHubAppClient:
             query = quote(f"{term} repo:{repo['full_name']}", safe="")
             try:
                 response = self._request(f"/search/code?q={query}&per_page=10", token)
-            except RuntimeError:
+            except RuntimeError as error:
+                self.last_diagnostics.append(f"{repo['full_name']}: pesquisa de conteúdo indisponível ({error}).")
                 continue
             for item in response.get("items", []):
                 matches.append(RepositoryFile(repo["full_name"], item["path"], item["html_url"]))
