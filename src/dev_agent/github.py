@@ -97,7 +97,7 @@ class GitHubAppClient:
                 ))
                 if len(results) >= limit:
                     break
-            self.last_diagnostics.append(f"{repo['full_name']}: pasta {directory}/ analisada; {len(results)} arquivos de código/texto listados.")
+            self.last_diagnostics.append(f"{repo['full_name']}: pasta {directory.rstrip('/')}/ analisada; {len(results)} arquivos de código/texto listados.")
         return results
 
     def _search_code(self, repo: dict[str, Any], token: str, prompt: str) -> list[RepositoryFile]:
@@ -214,7 +214,9 @@ def _needs_text_source_map(prompt: str) -> bool:
 def _directory_hint(prompt: str) -> str:
     """Extrai um caminho de pasta explícito, como apps/web/app/."""
     match = re.search(r"(?<!\S)((?:[\w.-]+/){1,}[\w.-]+/?)(?!\S)", prompt)
-    return match.group(1).strip("/") if match else ""
+    # O caminho costuma vir no fim de uma frase: "apps/web/app/.".
+    # Pontos, crases e barras de pontuação não pertencem ao diretório.
+    return match.group(1).strip('/`.,;:!?)]}') if match else ""
 
 
 def _is_text_source_file(path: str) -> bool:

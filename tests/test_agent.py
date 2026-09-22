@@ -14,7 +14,7 @@ from dev_agent.config import Config
 from dev_agent.core import PersonalDevAgent
 from dev_agent.server import AgentWebService, _is_directory_analysis
 from dev_agent.github import RepositoryFile
-from dev_agent.github import _content_terms, _needs_text_source_map, _project_hint, _text_source_directories, _translation_confidence
+from dev_agent.github import _content_terms, _directory_hint, _needs_text_source_map, _project_hint, _text_source_directories, _translation_confidence
 from dev_agent.security import redact_secrets
 
 
@@ -241,6 +241,9 @@ class AgentTest(unittest.TestCase):
 
     def test_explicit_directory_analysis_is_detected(self):
         self.assertTrue(_is_directory_analysis("No projeto Venda-SaaS, analise apenas apps/web/app/"))
+
+    def test_directory_hint_ignores_sentence_punctuation(self):
+        self.assertEqual(_directory_hint("Analise apps/web/app/."), "apps/web/app")
 
 
 if __name__ == "__main__":
