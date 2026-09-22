@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 
 from .config import Config
 from .core import PersonalDevAgent
+from .github import GitHubAppClient
 from .auth import SessionAuth
 from .permissions import ActionRisk
 from .security import redact_secrets
@@ -24,6 +25,8 @@ class AgentWebService:
 
     def __init__(self, agent: PersonalDevAgent):
         self.agent = agent
+        self.github = GitHubAppClient(agent.config.github_app_id, agent.config.github_installation_id,
+                                      agent.config.github_app_private_key_b64)
 
     def state(self) -> Dict[str, Any]:
         requests, tokens = self.agent.memory.usage_today()
@@ -65,6 +68,20 @@ class AgentWebService:
         has_link = bool(re.search(r"https?://\S+", message))
         result = self.agent.solve(message, use_codex=authorize_codex, image_data_urls=safe_images,
                                   use_web_search=has_link and authorize_codex)
+        if result.route == "needs_codex" and _is_repository_lookup(message):
+            if not self.github.enabled:
+                return {
+                    "kind": "solution", "attempt_id": result.attempt_id, "source": "github_gap",
+                    "message": "Para procurar nos seus projetos, conecte a GitHub App com acesso somente-leitura.",
+                    "solution": "Nenhum modelo externo foi consultado e nenhum crédito foi usado.",
+                }
+            files = self.github.find_files(message)
+            solution = "\n".join(f"- {item.repository}: {item.path}\n  {item.url}" for item in files)
+            if not solution:
+                solution = "Não encontrei arquivos correspondentes nos repositórios autorizados."
+            attempt = self.agent.memory.create_attempt(message, solution, "github", status="completed")
+            return {"kind": "solution", "attempt_id": attempt.id, "source": "github",
+                    "message": "Busca somente-leitura concluída no GitHub.", "solution": solution}
         if result.route == "needs_codex":
             route = self.agent.specialist_route(message, safe_images, has_link)
             return {
@@ -251,6 +268,11 @@ def _validate_images(images: list[str]) -> list[str]:
         if not isinstance(image, str) or not accepted.match(image) or len(image) > 7_000_000:
             raise ValueError("Use prints PNG, JPEG ou WebP de até aproximadamente 5 MB.")
     return images
+
+
+def _is_repository_lookup(message: str) -> bool:
+    words = message.lower()
+    return any(term in words for term in ("arquivo", "repositório", "repositorio", "projeto", "localize", "localizar", "encontre", "encontrar"))
 
 
 def main() -> int:

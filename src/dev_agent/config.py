@@ -22,6 +22,9 @@ class Config:
     app_password: str = ""
     session_secret: str = ""
     cookie_secure: bool = False
+    github_app_id: str = ""
+    github_installation_id: str = ""
+    github_app_private_key_b64: str = ""
 
     @property
     def database(self) -> Path:
@@ -66,4 +69,7 @@ class Config:
             app_password=os.getenv("DEV_AGENT_APP_PASSWORD", ""),
             session_secret=os.getenv("DEV_AGENT_SESSION_SECRET", ""),
             cookie_secure=os.getenv("DEV_AGENT_COOKIE_SECURE", "false").strip().lower() == "true",
+            github_app_id=os.getenv("GITHUB_APP_ID", "").strip(),
+            github_installation_id=os.getenv("GITHUB_APP_INSTALLATION_ID", "").strip(),
+            github_app_private_key_b64=os.getenv("GITHUB_APP_PRIVATE_KEY_B64", "").strip(),
         )

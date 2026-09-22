@@ -17,6 +17,7 @@ function addMessage(text, role = 'agent', code = false) {
 }
 function addSolution(data) {
   const message = addMessage(`${data.message}\n\n${data.solution}`, 'agent');
+  if (data.source === 'github' || data.source === 'github_gap') return;
   message.querySelector('div').insertAdjacentHTML('beforeend', `<div class="solution-actions"><button class="secondary">Testar esta solução</button></div>`);
   message.querySelector('button').onclick = () => testDialog(data.attempt_id);
 }

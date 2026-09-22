@@ -111,6 +111,10 @@ Isso mantém o modelo open-source fora do servidor de 512 MB do Render. Um model
 
 O painel também mede maturidade: taxa de soluções reutilizadas da própria base, consultas externas e testes verificados. Quando houver pelo menos 10 conhecimentos permanentes, 20 tarefas roteadas e 70% de resolução local, ele recomenda revisar o uso do Terra; essa mudança nunca acontece automaticamente.
 
+## Projetos no GitHub
+
+O agente pode usar uma GitHub App instalada na sua conta para descobrir repositórios e localizar arquivos sem chamar modelo nem gastar créditos. A primeira fase é estritamente somente-leitura: `Metadata: Read` e `Contents: Read`. Configure no Render `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID` e `GITHUB_APP_PRIVATE_KEY_B64` como secrets. A chave privada deve ser codificada em Base64 antes de ser salva como secret. A instalação da App pode abranger todos os repositórios da sua conta; nenhum acesso de escrita é solicitado nesta fase.
+
 ## Arquitetura
 
 - `core.py`: orquestra memória, habilidades, orçamento e Codex.

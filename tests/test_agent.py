@@ -13,6 +13,7 @@ from dev_agent.auth import SessionAuth
 from dev_agent.config import Config
 from dev_agent.core import PersonalDevAgent
 from dev_agent.server import AgentWebService
+from dev_agent.github import RepositoryFile
 from dev_agent.security import redact_secrets
 
 
@@ -189,6 +190,18 @@ class AgentTest(unittest.TestCase):
         self.assertEqual(stats["local_solutions"], 1)
         self.assertEqual(stats["external_consultations"], 1)
         self.assertEqual(stats["local_rate"], 50)
+
+    def test_repository_lookup_uses_github_read_only_without_model_call(self):
+        service = AgentWebService(self.agent)
+        class FakeGitHub:
+            enabled = True
+            def find_files(self, _prompt):
+                return [RepositoryFile("ariane/vendamais", "locales/en.json", "https://github.com/ariane/vendamais/blob/main/locales/en.json")]
+        service.github = FakeGitHub()
+        self.agent.codex.ask = lambda *_, **__: self.fail("Busca no GitHub não consulta modelo")
+        result = service.chat("Encontre o arquivo do projeto vendamais com tradução para inglês")
+        self.assertEqual(result["source"], "github")
+        self.assertIn("locales/en.json", result["solution"])
 
 
 if __name__ == "__main__":

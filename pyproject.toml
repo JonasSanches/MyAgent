@@ -3,6 +3,7 @@ name = "personal-dev-agent"
 version = "0.1.0"
 description = "MVP local de um agente pessoal de desenvolvimento"
 requires-python = ">=3.9"
+dependencies = ["PyJWT[crypto]>=2.10"]
 
 [project.scripts]
 dev-agent = "dev_agent.cli:main"
