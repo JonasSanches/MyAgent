@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Meu Agente</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="mark">✦</span><div><strong>Meu Agente</strong><small>desenvolvimento pessoal</small></div></div>
+      <section><p class="eyebrow">AUTONOMIA</p><div class="autonomy"><span></span>Pronto para agir</div><p class="muted">Consulta você apenas nas decisões que importam.</p></section>
+      <section><p class="eyebrow">CONHECIMENTO</p><div id="knowledge" class="list"><p class="muted">Carregando…</p></div></section>
+      <section><p class="eyebrow">HISTÓRICO RECENTE</p><div id="history" class="list"></div></section>
+      <section class="usage"><p class="eyebrow">ORÇAMENTO DO DIA</p><strong id="usage">—</strong><p class="muted">O Codex só entra quando houver uma lacuna.</p></section>
+    </aside>
+    <section class="chat-area">
+      <header><div><p class="eyebrow">SESSÃO PRIVADA</p><h1>Como vamos avançar?</h1></div><div class="header-actions"><button id="logout" class="quiet" hidden>Sair</button><button id="permissions" class="quiet">Permissões</button></div></header>
+      <div id="messages" class="messages">
+        <article class="message agent"><span class="avatar">✦</span><div><p>Olá. Primeiro vou procurar o que já foi validado. Se houver uma lacuna, eu explico e peço autorização antes de chamar o Codex.</p></div></article>
+      </div>
+      <form id="composer" class="composer" style="display:grid; grid-template-rows:auto auto; align-items:stretch;">
+        <div class="composer-toolbar" style="display:flex; align-items:center; gap:9px;"><label class="attach" title="Anexar print"><input id="images" type="file" accept="image/png,image/jpeg,image/webp" multiple>＋</label><button id="toggle-height" class="resize-toggle" type="button" title="Aumentar campo" aria-label="Aumentar campo">↕</button><div id="attachments" class="attachments"></div><small style="margin-right:auto">Enter envia · Shift+Enter quebra a linha</small><button type="submit" style="padding:9px 15px">Enviar <span>↵</span></button></div>
+        <textarea id="prompt" rows="1" style="resize:none; min-height:64px; height:64px; width:100%;" placeholder="Descreva uma tarefa, cole um link ou anexe um print…"></textarea>
+      </form>
+    </section>
+  </main>
+  <dialog id="login-dialog"><form id="login-form" method="dialog"><h2>Acesso privado</h2><p>Digite a senha do seu agente.</p><label>Senha<input id="login-password" type="password" autocomplete="current-password" required></label><p id="login-error" class="error" role="alert"></p><div class="actions"><button class="primary" type="submit">Entrar</button></div></form></dialog>
+  <dialog id="action-dialog"><div id="dialog-content"></div></dialog>
+  <script src="/app.js"></script>
+</body>
+</html>

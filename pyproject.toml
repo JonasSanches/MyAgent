@@ -1,0 +1,18 @@
+[project]
+name = "personal-dev-agent"
+version = "0.1.0"
+description = "MVP local de um agente pessoal de desenvolvimento"
+requires-python = ">=3.9"
+
+[project.scripts]
+dev-agent = "dev_agent.cli:main"
+dev-agent-web = "dev_agent.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+dev_agent = ["web/*.html", "web/*.css", "web/*.js"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
