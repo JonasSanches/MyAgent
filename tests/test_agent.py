@@ -291,6 +291,13 @@ class AgentTest(unittest.TestCase):
         self.assertIn("clipboardData.items", client)
         self.assertIn("addEventListener('paste'", client)
 
+    def test_web_client_renders_image_previews_in_composer_and_chat(self):
+        root = Path(__file__).parents[1] / "src" / "dev_agent" / "web"
+        client, styles = (root / "app.js").read_text(), (root / "style.css").read_text()
+        self.assertIn("addUserMessage", client)
+        self.assertIn("message-images", client)
+        self.assertIn("attachment img", styles)
+
     def test_change_plan_is_not_mistaken_for_a_file_lookup(self):
         self.assertFalse(_is_repository_lookup("No projeto Venda-SaaS, crie um plano para alterar o título."))
 

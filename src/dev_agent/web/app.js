@@ -15,6 +15,18 @@ function addMessage(text, role = 'agent', code = false) {
   article.innerHTML = `<span class="avatar">${role === 'agent' ? '✦' : 'Você'}</span><div>${code ? `<pre>${escapeHtml(text)}</pre>` : `<p>${escapeHtml(text)}</p>`}</div>`;
   messages.append(article); messages.scrollTop = messages.scrollHeight; return article;
 }
+function addUserMessage(text, images = []) {
+  const article = addMessage(text || '', 'user');
+  if (!images.length) return article;
+  const gallery = document.createElement('div'); gallery.className = 'message-images';
+  images.forEach((source, index) => {
+    const image = document.createElement('img'); image.src = source; image.alt = `Print anexado ${index + 1}`;
+    gallery.append(image);
+  });
+  article.querySelector('div').append(gallery);
+  messages.scrollTop = messages.scrollHeight;
+  return article;
+}
 function addSolution(data) {
   const message = addMessage(`${data.message}\n\n${data.solution}`, 'agent');
   if (data.source === 'github') {
@@ -83,7 +95,7 @@ $('#logout').onclick = async () => {
 };
 let selectedImages = [];
 function renderAttachments() {
-  $('#attachments').innerHTML = selectedImages.map((image, index) => `<span class="attachment">Print ${index + 1}<button type="button" data-index="${index}" aria-label="Remover print">×</button></span>`).join('');
+  $('#attachments').innerHTML = selectedImages.map((image, index) => `<span class="attachment"><img src="${image}" alt="Print ${index + 1}"><button type="button" data-index="${index}" aria-label="Remover print">×</button></span>`).join('');
   document.querySelectorAll('.attachment button').forEach(button => button.onclick = () => { selectedImages.splice(Number(button.dataset.index), 1); renderAttachments(); });
 }
 function readImage(file) {
@@ -119,7 +131,7 @@ $('#toggle-height').onclick = () => {
 $('#prompt').onkeydown = (event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); $('#composer').requestSubmit(); } };
 $('#composer').onsubmit = async (event) => {
   event.preventDefault(); const prompt = $('#prompt').value.trim(); const images = [...selectedImages]; if (!prompt && !images.length) return;
-  addMessage(prompt || `[${images.length} print${images.length > 1 ? 's' : ''} anexado${images.length > 1 ? 's' : ''}]`, 'user'); $('#prompt').value = ''; selectedImages = []; renderAttachments();
+  addUserMessage(prompt, images); $('#prompt').value = ''; selectedImages = []; renderAttachments();
   try { const data = await api('/api/chat',{method:'POST',body:JSON.stringify({message:prompt,images})}); data.kind === 'confirmation' ? confirmation(data,prompt,images) : addSolution(data); refresh(); } catch(error) { addMessage(error.message); }
 };
 $('#permissions').onclick = async () => { const state = await api('/api/state'); $('#dialog-content').innerHTML = `<h2>Permissões</h2>${state.permissions.map(item => `<p><strong>${escapeHtml(item.action)}</strong><br>${item.confirmation ? 'Pede sua confirmação.' : 'Atua com autonomia.'}</p>`).join('')}<div class="actions"><button class="secondary" id="close-dialog">Fechar</button></div>`; dialog.showModal(); $('#close-dialog').onclick=()=>dialog.close(); };

@@ -8,3 +8,4 @@
 .error { color: #a12626; min-height: 1.2em; }
 .header-actions { display: flex; gap: 8px; }
 .maturity-ready { color: #126250; font-size: 12px; font-weight: 700; }
+.attachment{position:relative;display:inline-flex;align-items:center;width:42px;height:42px;border-radius:7px;overflow:hidden;border:1px solid #cbdad4;background:var(--accent-soft)}.attachment img{width:100%;height:100%;object-fit:cover}.attachment button{position:absolute;right:2px;top:2px;width:17px;height:17px;padding:0;border:0;border-radius:50%;background:#18221fcc;color:#fff;line-height:17px;cursor:pointer}.message-images{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.message-images img{width:150px;max-height:150px;object-fit:cover;border-radius:9px;border:1px solid #cbdad4;cursor:zoom-in}
