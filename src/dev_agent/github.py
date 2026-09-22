@@ -100,6 +100,32 @@ class GitHubAppClient:
             self.last_diagnostics.append(f"{repo['full_name']}: pasta {directory.rstrip('/')}/ analisada; {len(results)} arquivos de código/texto listados.")
         return results
 
+    def analyze_file(self, prompt: str) -> list[RepositoryFile]:
+        """Lê um arquivo explicitamente indicado e devolve um resumo sem expor o fonte inteiro."""
+        path = _file_hint(prompt)
+        if not path:
+            return []
+        token = self._installation_token()
+        self.last_diagnostics = []
+        repositories = self._request("/installation/repositories?per_page=100", token).get("repositories", [])
+        project_hint = _project_hint(prompt)
+        selected = [repo for repo in repositories if project_hint in repo["name"].lower()] if project_hint else repositories
+        if not selected:
+            selected = repositories
+        for repo in selected:
+            try:
+                response = self._request(f"/repos/{repo['full_name']}/contents/{quote(path, safe='/')}?ref={quote(repo['default_branch'], safe='')}", token)
+                content = base64.b64decode(response.get("content", "")).decode("utf-8", errors="ignore")
+            except (RuntimeError, ValueError, TypeError):
+                continue
+            self.last_diagnostics.append(f"{repo['full_name']}: arquivo {path} lido somente para análise.")
+            return [RepositoryFile(
+                repo["full_name"], path, f"{repo['html_url']}/blob/{repo['default_branch']}/{path}", repo["default_branch"],
+                0, _source_summary(path, content), "analysis",
+            )]
+        self.last_diagnostics.append(f"Arquivo {path} não foi localizado nos repositórios selecionados.")
+        return []
+
     def _search_code(self, repo: dict[str, Any], token: str, prompt: str) -> list[RepositoryFile]:
         """Pesquisa conteúdo e caminho; a árvore abaixo continua como fallback."""
         terms = _content_terms(prompt)
@@ -219,6 +245,11 @@ def _directory_hint(prompt: str) -> str:
     return match.group(1).strip('/`.,;:!?)]}') if match else ""
 
 
+def _file_hint(prompt: str) -> str:
+    match = re.search(r"(?<!\S)((?:[\w.-]+/)+[\w.-]+\.(?:tsx?|jsx?|vue|svelte|html|php|json|py|rb))(?=$|\s|[.,;:!?`])", prompt, flags=re.IGNORECASE)
+    return match.group(1).strip('/`.,;:!?)]}') if match else ""
+
+
 def _is_text_source_file(path: str) -> bool:
     lower = path.lower()
     extensions = (".ts", ".tsx", ".js", ".jsx", ".vue", ".svelte", ".html", ".php", ".json", ".md", ".css", ".scss")
@@ -241,6 +272,39 @@ def _file_role(path: str) -> str:
     if "/components/" in lower:
         return "componente reutilizável da interface"
     return "arquivo de código/texto a analisar na interface"
+
+
+def _source_summary(path: str, content: str) -> str:
+    """Resumo heurístico: útil para triagem, sem fingir entendimento de especialista."""
+    lines = len(content.splitlines())
+    signals: list[str] = [_file_role(path), f"{lines} linhas"]
+    lower = content.lower()
+    if "use client" in lower:
+        signals.append("componente executado no navegador")
+    if re.search(r"\b(fetch|axios\.|trpc\.|usequery\b)", content, flags=re.IGNORECASE):
+        signals.append("faz ou consome chamadas de dados/API")
+    if re.search(r"\b(useState|useEffect|useMemo)\b", content):
+        signals.append("tem estado ou comportamento interativo")
+    texts = _visible_text_samples(content)
+    if texts:
+        signals.append("textos aparentes: " + ", ".join(f'“{text}”' for text in texts))
+    return "; ".join(signals) + "."
+
+
+def _visible_text_samples(content: str, limit: int = 4) -> list[str]:
+    samples: list[str] = []
+    for match in re.finditer(r"['\"]([^'\"\n]{3,80})['\"]", content):
+        text = match.group(1).strip()
+        lower = text.lower()
+        if any(marker in lower for marker in ("/", "./", "http", "class", "import", "use client", "@/")):
+            continue
+        if not re.search(r"[a-záàâãéêíóôõúç]", lower):
+            continue
+        if text not in samples:
+            samples.append(text)
+        if len(samples) >= limit:
+            break
+    return samples
 
 
 def _text_source_directories(repo: dict[str, Any], tree: list[dict[str, Any]]) -> list[RepositoryFile]:

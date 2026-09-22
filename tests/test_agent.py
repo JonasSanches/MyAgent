@@ -12,9 +12,9 @@ from dev_agent.codex import CodexResult
 from dev_agent.auth import SessionAuth
 from dev_agent.config import Config
 from dev_agent.core import PersonalDevAgent
-from dev_agent.server import AgentWebService, _is_directory_analysis
+from dev_agent.server import AgentWebService, _is_directory_analysis, _is_file_analysis
 from dev_agent.github import RepositoryFile
-from dev_agent.github import _content_terms, _directory_hint, _needs_text_source_map, _project_hint, _text_source_directories, _translation_confidence
+from dev_agent.github import _content_terms, _directory_hint, _file_hint, _needs_text_source_map, _project_hint, _source_summary, _text_source_directories, _translation_confidence
 from dev_agent.security import redact_secrets
 
 
@@ -244,6 +244,16 @@ class AgentTest(unittest.TestCase):
 
     def test_directory_hint_ignores_sentence_punctuation(self):
         self.assertEqual(_directory_hint("Analise apps/web/app/."), "apps/web/app")
+
+    def test_file_analysis_extracts_explicit_file_path(self):
+        prompt = "Analise apps/web/app/admin/page.tsx. Não altere nada."
+        self.assertTrue(_is_file_analysis(prompt))
+        self.assertEqual(_file_hint(prompt), "apps/web/app/admin/page.tsx")
+
+    def test_source_summary_reports_safe_code_signals(self):
+        summary = _source_summary("apps/web/app/admin/page.tsx", "'use client'\nconst [x] = useState(0)\nreturn <h1>Painel administrativo</h1>")
+        self.assertIn("página da interface", summary)
+        self.assertIn("interativo", summary)
 
 
 if __name__ == "__main__":

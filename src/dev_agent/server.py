@@ -75,8 +75,10 @@ class AgentWebService:
                     "message": "Para procurar nos seus projetos, conecte a GitHub App com acesso somente-leitura.",
                     "solution": "Nenhum modelo externo foi consultado e nenhum crédito foi usado.",
                 }
+            file_analysis = _is_file_analysis(message)
             directory_analysis = _is_directory_analysis(message)
-            files = self.github.analyze_directory(message) if directory_analysis else self.github.find_files(message)
+            files = (self.github.analyze_file(message) if file_analysis else
+                     self.github.analyze_directory(message) if directory_analysis else self.github.find_files(message))
             solution = "\n".join(
                 (f"- {item.repository}: {item.path} — {item.reason}\n  {item.url}"
                  if item.kind == "analysis" else
@@ -89,7 +91,9 @@ class AgentWebService:
             attempt = self.agent.memory.create_attempt(message, solution, "github", status="completed")
             mapped_directories = any(item.kind == "directory" for item in files)
             return {"kind": "solution", "attempt_id": attempt.id, "source": "github",
-                    "message": ("Análise somente-leitura da pasta concluída; arquivos listados por provável papel na interface."
+                    "message": ("Análise somente-leitura do arquivo concluída; resumo baseado no conteúdo do repositório."
+                                if file_analysis else
+                                "Análise somente-leitura da pasta concluída; arquivos listados por provável papel na interface."
                                 if directory_analysis else
                                 "Não encontrei um arquivo específico; mapeei diretórios de código que podem carregar os textos da interface."
                                 if mapped_directories else "Busca somente-leitura concluída no GitHub; candidatos ordenados por evidências de tradução."), "solution": solution}
@@ -290,6 +294,12 @@ def _is_directory_analysis(message: str) -> bool:
     has_analysis_intent = any(term in message.lower() for term in ("analise", "analisar", "explique", "listar"))
     has_directory = bool(re.search(r"(?<!\S)(?:[\w.-]+/){1,}[\w.-]+/?(?!\S)", message))
     return has_analysis_intent and has_directory
+
+
+def _is_file_analysis(message: str) -> bool:
+    has_analysis_intent = any(term in message.lower() for term in ("analise", "analisar", "explique", "ler", "leia"))
+    has_file = bool(re.search(r"(?<!\S)(?:[\w.-]+/)+[\w.-]+\.(?:tsx?|jsx?|vue|svelte|html|php|json|py|rb)(?=$|\s|[.,;:!?`])", message, flags=re.IGNORECASE))
+    return has_analysis_intent and has_file
 
 
 def main() -> int:
