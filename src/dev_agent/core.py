@@ -19,6 +19,17 @@ conhecimento local validado suficiente. Investigue a lacuna com profundidade, pr
 solução segura e inclua critérios claros para verificar a implementação. Não afirme que algo foi
 testado sem evidência."""
 
+ROUTINE_INSTRUCTIONS = """Você é a camada de rotina de um agente de desenvolvimento.
+Resolva apenas tarefas textuais bem delimitadas e de baixo risco com rigor técnico. Se houver
+incerteza relevante, impacto em segurança, arquitetura, banco de dados ou produção, declare a
+lacuna para que a tarefa seja escalada ao especialista. Inclua critérios objetivos de teste."""
+
+CRITICAL_TERMS = {
+    "segurança", "security", "arquitetura", "architecture", "migração", "migration",
+    "banco", "database", "produção", "production", "deploy", "destrutiv", "pagamento",
+    "credencial", "autenticação", "authentication",
+}
+
 
 class SolveResult:
     def __init__(self, route: str, attempt_id: int | None = None, solution: str = "", message: str = ""):
@@ -34,6 +45,7 @@ class PersonalDevAgent:
         self.memory = Memory(config.database)
         self.skills = SkillRegistry(config.skills_dir)
         self.codex = CodexClient(config.model, config.max_output_tokens, config.reasoning_effort, config.text_verbosity)
+        self.routine = CodexClient(config.routine_model, config.max_output_tokens, "high", config.text_verbosity)
         self.permissions = PermissionPolicy()
 
     def build_context(self, prompt: str) -> str:
@@ -77,6 +89,22 @@ class PersonalDevAgent:
         self.memory.record_usage(result.total_tokens)
         return result
 
+    def ask_routine(self, prompt: str) -> CodexResult:
+        allowed, reason = self.can_spend()
+        if not allowed:
+            raise RuntimeError(reason)
+        result = self.routine.ask(prompt, self.build_context(prompt) + "\n\n" + ROUTINE_INSTRUCTIONS)
+        self.memory.record_usage(result.total_tokens)
+        return result
+
+    def specialist_route(self, prompt: str, image_data_urls: Optional[List[str]] = None,
+                         use_web_search: bool = False) -> str:
+        words = prompt.lower()
+        critical = any(term in words for term in CRITICAL_TERMS)
+        if image_data_urls or use_web_search or critical or self.memory.has_failed_attempt(prompt):
+            return "codex"
+        return "routine" if self.config.routine_enabled else "codex"
+
     def solve(self, prompt: str, use_codex: bool = False, image_data_urls: Optional[List[str]] = None,
               use_web_search: bool = False) -> SolveResult:
         knowledge = self.memory.search_knowledge(prompt, limit=1)
@@ -91,6 +119,11 @@ class PersonalDevAgent:
         decision = self.permissions.decide(ActionRisk.CODEX)
         if not decision.requires_confirmation:
             raise RuntimeError("Política de permissão inválida para consulta ao Codex.")
+        route = self.specialist_route(prompt, image_data_urls, use_web_search)
+        if route == "routine":
+            result = self.ask_routine(prompt)
+            attempt = self.memory.create_attempt(prompt, result.text, "routine")
+            return SolveResult("routine", attempt.id, result.text, f"Modelo de rotina consultado: {result.total_tokens} tokens.")
         result = self.ask_codex(prompt, as_specialist=True, image_data_urls=image_data_urls, use_web_search=use_web_search)
         attempt = self.memory.create_attempt(prompt, result.text, "codex")
-        return SolveResult("codex", attempt.id, result.text, f"Codex consultado: {result.total_tokens} tokens.")
+        return SolveResult("codex", attempt.id, result.text, f"Codex especialista consultado: {result.total_tokens} tokens.")

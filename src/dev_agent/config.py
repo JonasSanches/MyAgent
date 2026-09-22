@@ -15,6 +15,8 @@ class Config:
     daily_token_budget: int
     reasoning_effort: str = "high"
     text_verbosity: str = "medium"
+    routine_model: str = "gpt-5.6-terra"
+    routine_enabled: bool = True
     database_path: Optional[Path] = None
     workspace_path: Optional[Path] = None
     app_password: str = ""
@@ -57,6 +59,8 @@ class Config:
             daily_token_budget=int(os.getenv("DEV_AGENT_DAILY_TOKEN_BUDGET", "30000")),
             reasoning_effort=os.getenv("DEV_AGENT_REASONING_EFFORT", "high"),
             text_verbosity=os.getenv("DEV_AGENT_TEXT_VERBOSITY", "medium"),
+            routine_model=os.getenv("DEV_AGENT_ROUTINE_MODEL", "gpt-5.6-terra"),
+            routine_enabled=os.getenv("DEV_AGENT_ROUTINE_ENABLED", "true").strip().lower() == "true",
             database_path=Path(database).expanduser() if database else None,
             workspace_path=Path(workspace).expanduser() if workspace else None,
             app_password=os.getenv("DEV_AGENT_APP_PASSWORD", ""),

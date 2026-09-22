@@ -22,7 +22,7 @@ function addSolution(data) {
 }
 function confirmation(data, prompt, images) {
   const message = addMessage(`${data.message}\n${data.detail}`, 'agent');
-  message.querySelector('div').insertAdjacentHTML('beforeend', `<div class="solution-actions"><button class="primary">Consultar Codex</button><button class="secondary">Agora não</button></div>`);
+  message.querySelector('div').insertAdjacentHTML('beforeend', `<div class="solution-actions"><button class="primary">Consultar próxima camada</button><button class="secondary">Agora não</button></div>`);
   const [yes, no] = message.querySelectorAll('button');
   yes.onclick = async () => { yes.disabled = true; try { addSolution(await api('/api/chat', {method:'POST', body: JSON.stringify({message: prompt, images, authorize_codex: true})})); refresh(); } catch (error) { addMessage(error.message); } };
   no.onclick = () => { no.disabled = true; addMessage('Certo. Registrei a lacuna no histórico e não usei créditos.'); };

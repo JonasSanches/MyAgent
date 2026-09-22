@@ -25,7 +25,7 @@ class AgentTest(unittest.TestCase):
             "---\nname: testar\ndescription: testar código e testes\n---\nRode o menor teste.\n",
             encoding="utf-8",
         )
-        self.config = Config(root, "fake-codex", 100, 2, 500)
+        self.config = Config(root, "fake-codex", 100, 2, 500, routine_enabled=False)
         self.agent = PersonalDevAgent(self.config)
 
     def tearDown(self):
@@ -138,6 +138,24 @@ class AgentTest(unittest.TestCase):
         self.assertEqual(answer["kind"], "solution")
         self.assertEqual(seen["image_data_urls"], [image])
         self.assertTrue(seen["use_web_search"])
+
+    def test_routine_model_handles_simple_unknown_task_when_enabled(self):
+        config = Config(self.config.root, "fake-codex", 100, 2, 500, routine_enabled=True)
+        agent = PersonalDevAgent(config)
+        agent.routine.ask = lambda *_, **__: CodexResult("Solução de rotina", 45)
+        agent.codex.ask = lambda *_, **__: self.fail("Não deveria escalar uma tarefa simples")
+        result = agent.solve("criar função para formatar um nome", use_codex=True)
+        self.assertEqual(result.route, "routine")
+        self.assertEqual(result.solution, "Solução de rotina")
+
+    def test_critical_task_bypasses_routine_and_uses_codex(self):
+        config = Config(self.config.root, "fake-codex", 100, 2, 500, routine_enabled=True)
+        agent = PersonalDevAgent(config)
+        agent.routine.ask = lambda *_, **__: self.fail("Tarefa crítica não pode usar a camada de rotina")
+        agent.codex.ask = lambda *_, **__: CodexResult("Análise especializada", 90)
+        result = agent.solve("planejar migração de banco de dados", use_codex=True)
+        self.assertEqual(result.route, "codex")
+        self.assertEqual(result.solution, "Análise especializada")
 
     def test_private_session_is_signed_and_expires_only_after_valid_signature(self):
         auth = SessionAuth("senha-segura", "s" * 40, cookie_secure=True)

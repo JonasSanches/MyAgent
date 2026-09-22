@@ -103,6 +103,12 @@ Por segurança, testes executados pela interface só aceitam diretórios dentro 
 - Respostas remotas não são armazenadas pela API (`store: false`).
 - Altere os limites pelas variáveis do arquivo `.env.example`; o programa lê variáveis de ambiente, não carrega `.env` automaticamente.
 
+## Roteamento híbrido em nuvem
+
+Depois de verificar o conhecimento permanente, o agente escolhe a próxima camada somente após sua autorização. Tarefas textuais simples usam `gpt-5.6-terra` com raciocínio `high`; tarefas com prints, links, segurança, arquitetura, banco de dados, produção ou uma falha anterior pulam diretamente para o Codex especialista configurado em `DEV_AGENT_MODEL`. Desative a camada de rotina com `DEV_AGENT_ROUTINE_ENABLED=false` se quiser que toda lacuna vá diretamente ao Codex.
+
+Isso mantém o modelo open-source fora do servidor de 512 MB do Render. Um modelo local exigiria uma máquina maior; o roteamento reduz chamadas desnecessárias sem rebaixar tarefas críticas. Toda solução, independentemente da camada, só vira conhecimento após teste aprovado e sua aprovação explícita.
+
 ## Arquitetura
 
 - `core.py`: orquestra memória, habilidades, orçamento e Codex.

@@ -47,6 +47,11 @@ class AgentWebService:
                 {"action": item.action.value, "confirmation": item.requires_confirmation}
                 for item in self.agent.permissions.describe()
             ],
+            "routing": {
+                "routine_enabled": self.agent.config.routine_enabled,
+                "routine_model": self.agent.config.routine_model,
+                "expert_model": self.agent.config.model,
+            },
         }
 
     def chat(self, message: str, authorize_codex: bool = False, images: Optional[list[str]] = None) -> Dict[str, Any]:
@@ -60,12 +65,15 @@ class AgentWebService:
         result = self.agent.solve(message, use_codex=authorize_codex, image_data_urls=safe_images,
                                   use_web_search=has_link and authorize_codex)
         if result.route == "needs_codex":
+            route = self.agent.specialist_route(message, safe_images, has_link)
             return {
                 "kind": "confirmation",
                 "attempt_id": result.attempt_id,
-                "message": "Não encontrei conhecimento validado suficiente. Posso consultar o Codex como especialista?",
-                "detail": "A consulta envia o texto e os prints anexados à API e pode gerar custo; o nível de raciocínio permanece alto."
-                          + (" O link informado poderá acionar pesquisa web." if has_link else ""),
+                "message": "Não encontrei conhecimento validado suficiente. Posso consultar a próxima camada de raciocínio?",
+                "detail": ("A tarefa parece de rotina: usarei o modelo de rotina com raciocínio alto. A consulta envia o texto à API e pode gerar custo."
+                           if route == "routine" else
+                           "A tarefa exige o Codex como especialista de alta qualidade. A consulta envia o texto e os prints anexados à API e pode gerar custo."
+                           + (" O link informado poderá acionar pesquisa web." if has_link else "")),
             }
         return {
             "kind": "solution",

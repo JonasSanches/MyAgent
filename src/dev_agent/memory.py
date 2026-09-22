@@ -272,6 +272,15 @@ class Memory:
             rows = connection.execute("SELECT * FROM attempts ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
         return [Attempt(**{key: row[key] for key in Attempt.__dataclass_fields__}) for row in rows]
 
+    def has_failed_attempt(self, prompt: str) -> bool:
+        """Uma repetição de falha deve subir de camada, não gastar na mesma rota."""
+        normalized = " ".join(prompt.lower().split())
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT prompt FROM attempts WHERE status = 'failed' ORDER BY id DESC LIMIT 50"
+            ).fetchall()
+        return any(" ".join(row["prompt"].lower().split()) == normalized for row in rows)
+
     def all_knowledge(self, limit: int = 20) -> list[KnowledgeItem]:
         with self._connect() as connection:
             rows = connection.execute("SELECT * FROM knowledge ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
