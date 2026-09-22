@@ -45,6 +45,11 @@ class GitHubAppClient:
                 repositories = matched_repositories
         matches: list[RepositoryFile] = []
         for repo in repositories:
+            for item in self._search_code(repo, token, prompt):
+                if item.url not in {existing.url for existing in matches}:
+                    matches.append(item)
+                    if len(matches) >= limit:
+                        return matches
             tree = self._request(f"/repos/{repo['full_name']}/git/trees/{quote(repo['default_branch'], safe='')}?recursive=1", token)
             for item in tree.get("tree", []):
                 path = item.get("path", "")
@@ -52,6 +57,20 @@ class GitHubAppClient:
                     matches.append(RepositoryFile(repo["full_name"], path, f"{repo['html_url']}/blob/{repo['default_branch']}/{path}"))
                     if len(matches) >= limit:
                         return matches
+        return matches
+
+    def _search_code(self, repo: dict[str, Any], token: str, prompt: str) -> list[RepositoryFile]:
+        """Pesquisa conteúdo e caminho; a árvore abaixo continua como fallback."""
+        terms = _content_terms(prompt)
+        matches: list[RepositoryFile] = []
+        for term in terms:
+            query = quote(f"{term} repo:{repo['full_name']}", safe="")
+            try:
+                response = self._request(f"/search/code?q={query}&per_page=10", token)
+            except RuntimeError:
+                continue
+            for item in response.get("items", []):
+                matches.append(RepositoryFile(repo["full_name"], item["path"], item["html_url"]))
         return matches
 
     def _installation_token(self) -> str:
@@ -113,3 +132,10 @@ def _matches(path: str, prompt: str) -> bool:
         return any(marker in path_lower for marker in ("i18n", "locale", "lang", "translation", "traducao", "/en.", "/en/", "english"))
     terms = [word for word in normalized.split() if len(word) >= 4]
     return any(term in path_lower for term in terms)
+
+
+def _content_terms(prompt: str) -> list[str]:
+    normalized = prompt.lower()
+    if any(word in normalized for word in ("trad", "ingl", "english", "idioma", "locale")):
+        return ["translation", "traducao", "i18n", "locale", "english", "pt-br", "en-us"]
+    return [word for word in normalized.split() if len(word) >= 4][:5]

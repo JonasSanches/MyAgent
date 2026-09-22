@@ -14,7 +14,7 @@ from dev_agent.config import Config
 from dev_agent.core import PersonalDevAgent
 from dev_agent.server import AgentWebService
 from dev_agent.github import RepositoryFile
-from dev_agent.github import _project_hint
+from dev_agent.github import _content_terms, _project_hint
 from dev_agent.security import redact_secrets
 
 
@@ -206,6 +206,9 @@ class AgentTest(unittest.TestCase):
 
     def test_repository_lookup_extracts_project_name_from_portuguese_request(self):
         self.assertEqual(_project_hint("Encontre o arquivo do projeto Venda-SaaS com tradução"), "venda-saas")
+
+    def test_translation_request_uses_content_search_terms(self):
+        self.assertIn("i18n", _content_terms("Localize tradução para inglês"))
 
 
 if __name__ == "__main__":
