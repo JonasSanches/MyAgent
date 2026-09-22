@@ -216,6 +216,10 @@ class AgentTest(unittest.TestCase):
         self.assertGreaterEqual(score, 90)
         self.assertIn("inglês", reason)
 
+    def test_translation_candidate_without_evidence_has_zero_confidence(self):
+        score, _ = _translation_confidence("public/banner.jpg", "")
+        self.assertEqual(score, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

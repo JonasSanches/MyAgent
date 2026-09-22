@@ -92,7 +92,8 @@ class GitHubAppClient:
                 raw_content = ""
             confidence, reason = _translation_confidence(item.path, raw_content)
             ranked.append(RepositoryFile(item.repository, item.path, item.url, item.branch, confidence, reason))
-        return sorted(ranked, key=lambda item: item.confidence, reverse=True)
+        # Resultado sem evidência é ruído (por exemplo, imagens retornadas pela busca ampla).
+        return sorted((item for item in ranked if item.confidence > 0), key=lambda item: item.confidence, reverse=True)
 
     def _installation_token(self) -> str:
         try:
