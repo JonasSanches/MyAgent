@@ -254,6 +254,13 @@ class AgentTest(unittest.TestCase):
         summary = _source_summary("apps/web/app/admin/page.tsx", "'use client'\nconst [x] = useState(0)\nreturn <h1>Painel administrativo</h1>")
         self.assertIn("página da interface", summary)
         self.assertIn("interativo", summary)
+        self.assertIn("Painel administrativo", summary)
+
+    def test_visible_text_summary_ignores_import_strings(self):
+        summary = _source_summary("apps/web/app/admin/page.tsx", "import React from 'react'\nreturn <button aria-label='Abrir menu'>Entrar</button>")
+        self.assertIn("Abrir menu", summary)
+        self.assertIn("Entrar", summary)
+        self.assertNotIn("“react”", summary)
 
 
 if __name__ == "__main__":

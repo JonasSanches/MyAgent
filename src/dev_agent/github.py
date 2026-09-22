@@ -293,17 +293,24 @@ def _source_summary(path: str, content: str) -> str:
 
 def _visible_text_samples(content: str, limit: int = 4) -> list[str]:
     samples: list[str] = []
-    for match in re.finditer(r"['\"]([^'\"\n]{3,80})['\"]", content):
-        text = match.group(1).strip()
-        lower = text.lower()
-        if any(marker in lower for marker in ("/", "./", "http", "class", "import", "use client", "@/")):
-            continue
-        if not re.search(r"[a-záàâãéêíóôõúç]", lower):
-            continue
-        if text not in samples:
-            samples.append(text)
-        if len(samples) >= limit:
-            break
+    patterns = (
+        # Conteúdo diretamente renderizado por JSX: <h1>Meu painel</h1>.
+        r">\s*([^<>{}\n]{3,80}?)\s*<",
+        # Rótulos acessíveis e campos de formulário também são visíveis ao usuário.
+        r"(?:aria-label|placeholder|title|label)\s*=\s*['\"]([^'\"\n]{3,80})['\"]",
+    )
+    for pattern in patterns:
+        for match in re.finditer(pattern, content, flags=re.IGNORECASE):
+            text = re.sub(r"\s+", " ", match.group(1)).strip()
+            lower = text.lower()
+            if any(marker in lower for marker in ("/", "http", "class", "import", "use client", "@/")):
+                continue
+            if not re.search(r"[a-záàâãéêíóôõúç]", lower):
+                continue
+            if text not in samples:
+                samples.append(text)
+            if len(samples) >= limit:
+                return samples
     return samples
 
 
