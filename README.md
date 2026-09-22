@@ -113,7 +113,7 @@ O painel também mede maturidade: taxa de soluções reutilizadas da própria ba
 
 ## Projetos no GitHub
 
-O agente pode usar uma GitHub App instalada na sua conta para descobrir repositórios e localizar arquivos sem chamar modelo nem gastar créditos. A primeira fase é estritamente somente-leitura: `Metadata: Read` e `Contents: Read`. Configure no Render `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID` e `GITHUB_APP_PRIVATE_KEY_B64` como secrets. A chave privada deve ser codificada em Base64 antes de ser salva como secret. A instalação da App pode abranger todos os repositórios da sua conta; nenhum acesso de escrita é solicitado nesta fase.
+O agente pode usar uma GitHub App instalada na sua conta para descobrir repositórios e localizar arquivos sem chamar modelo nem gastar créditos. A primeira fase é estritamente somente-leitura: `Metadata: Read` e `Contents: Read`. Configure no Render `GITHUB_APP_ID` e `GITHUB_APP_PRIVATE_KEY_B64` como secrets. A chave privada deve ser codificada em Base64 antes de ser salva como secret. `GITHUB_APP_INSTALLATION_ID` é opcional e só é usado quando a App tiver mais de uma instalação. A instalação da App pode abranger todos os repositórios da sua conta; nenhum acesso de escrita é solicitado nesta fase.
 
 ## Arquitetura
 

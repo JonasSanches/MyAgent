@@ -29,7 +29,7 @@ class GitHubAppClient:
 
     @property
     def enabled(self) -> bool:
-        return bool(self.app_id and self.installation_id and self.private_key_b64)
+        return bool(self.app_id and self.private_key_b64)
 
     def find_files(self, prompt: str, limit: int = 20) -> list[RepositoryFile]:
         if not self.enabled:
@@ -61,10 +61,19 @@ class GitHubAppClient:
             raise RuntimeError("A chave privada da GitHub App não está no formato esperado.") from error
         now = int(time.time())
         app_token = jwt.encode({"iat": now - 60, "exp": now + 540, "iss": self.app_id}, private_key, algorithm="RS256")
-        data = self._request(f"/app/installations/{self.installation_id}/access_tokens", app_token, method="POST")
+        installation_id = self.installation_id or self._discover_installation(app_token)
+        data = self._request(f"/app/installations/{installation_id}/access_tokens", app_token, method="POST")
         return str(data["token"])
 
-    def _request(self, path: str, token: str, method: str = "GET") -> dict[str, Any]:
+    def _discover_installation(self, app_token: str) -> str:
+        installations = self._request("/app/installations", app_token)
+        if not isinstance(installations, list) or not installations:
+            raise RuntimeError("A GitHub App ainda não foi instalada em uma conta.")
+        if len(installations) > 1:
+            raise RuntimeError("Há mais de uma instalação da GitHub App. Defina GITHUB_APP_INSTALLATION_ID no Render.")
+        return str(installations[0]["id"])
+
+    def _request(self, path: str, token: str, method: str = "GET") -> Any:
         request = Request(f"{self.api}{path}", method=method, headers={
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {token}",
