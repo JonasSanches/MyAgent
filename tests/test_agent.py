@@ -101,6 +101,16 @@ class AgentTest(unittest.TestCase):
         stored = service.approve(solution["attempt_id"])
         self.assertIn("knowledge_id", stored)
 
+    def test_human_approval_promotes_github_reading_to_knowledge(self):
+        service = AgentWebService(self.agent)
+        discovery = self.agent.memory.create_attempt(
+            "analise apps/web/app/admin/page.tsx", "Página administrativa; usa API.", "github", status="completed"
+        )
+        stored = service.approve(discovery.id)
+        self.assertIn("knowledge_id", stored)
+        self.assertEqual(self.agent.memory.get_attempt(discovery.id).status, "learned")
+        self.assertTrue(self.agent.memory.all_knowledge())
+
     def test_api_key_is_redacted_before_history_storage(self):
         secret = "sk-proj-abcdefghijklmnopqrstuvwxyz0123456789"
         attempt = self.agent.memory.create_attempt(f"usar {secret}", secret, "manual")
@@ -191,6 +201,13 @@ class AgentTest(unittest.TestCase):
         self.assertEqual(stats["local_solutions"], 1)
         self.assertEqual(stats["external_consultations"], 1)
         self.assertEqual(stats["local_rate"], 50)
+
+    def test_maturity_counts_validated_github_discovery(self):
+        discovery = self.agent.memory.create_attempt("mapear app", "apps/web/app", "github", status="completed")
+        self.agent.memory.approve_github_discovery(discovery.id)
+        stats = self.agent.memory.maturity_stats()
+        self.assertEqual(stats["knowledge_count"], 1)
+        self.assertEqual(stats["verified_attempts"], 1)
 
     def test_repository_lookup_uses_github_read_only_without_model_call(self):
         service = AgentWebService(self.agent)

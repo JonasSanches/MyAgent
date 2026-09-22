@@ -157,7 +157,9 @@ class AgentWebService:
         return candidate
 
     def approve(self, attempt_id: int) -> Dict[str, Any]:
-        identifier = self.agent.memory.approve_attempt(attempt_id)
+        attempt = self.agent.memory.get_attempt(attempt_id)
+        identifier = (self.agent.memory.approve_github_discovery(attempt_id)
+                      if attempt.source == "github" else self.agent.memory.approve_attempt(attempt_id))
         return {"knowledge_id": identifier, "message": f"Conhecimento #{identifier} salvo permanentemente."}
 
     def reject(self, attempt_id: int) -> Dict[str, Any]:

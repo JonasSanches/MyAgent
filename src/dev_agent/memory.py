@@ -249,6 +249,24 @@ class Memory:
             )
         return knowledge_id
 
+    def approve_github_discovery(self, identifier: int) -> int:
+        """Promove uma descoberta de leitura do GitHub somente após revisão humana."""
+        attempt = self.get_attempt(identifier)
+        if attempt.source != "github" or attempt.status != "completed":
+            raise ValueError(f"Descoberta #{identifier} não está disponível para aprendizado.")
+        evidence = "revisão humana: descoberta GitHub somente-leitura"
+        knowledge_id = self.add_knowledge(
+            title=_title_for(attempt.prompt), problem=attempt.prompt, solution=attempt.solution,
+            test_command=evidence, tags="github, leitura-validada",
+        )
+        with self._connect() as connection:
+            connection.execute(
+                """UPDATE attempts SET status = 'learned', approval_status = 'approved', knowledge_id = ?,
+                   completed_at = ?, test_output = ?, test_command = ? WHERE id = ?""",
+                (knowledge_id, datetime.now(timezone.utc).isoformat(), evidence, evidence, identifier),
+            )
+        return knowledge_id
+
     def reject_attempt(self, identifier: int) -> None:
         attempt = self.get_attempt(identifier)
         if attempt.status != "awaiting_approval":
@@ -290,7 +308,7 @@ class Memory:
         """Indicadores simples, explicáveis e baseados somente em tentativas reais."""
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT source, status FROM attempts WHERE source IN ('knowledge', 'routine', 'codex')"
+                "SELECT source, status FROM attempts WHERE source IN ('knowledge', 'routine', 'codex', 'github')"
             ).fetchall()
             knowledge_count = int(connection.execute("SELECT COUNT(*) FROM knowledge").fetchone()[0])
         local = sum(row["source"] == "knowledge" and row["status"] == "verified" for row in rows)

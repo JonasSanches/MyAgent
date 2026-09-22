@@ -17,7 +17,14 @@ function addMessage(text, role = 'agent', code = false) {
 }
 function addSolution(data) {
   const message = addMessage(`${data.message}\n\n${data.solution}`, 'agent');
-  if (data.source === 'github' || data.source === 'github_gap') return;
+  if (data.source === 'github') {
+    message.querySelector('div').insertAdjacentHTML('beforeend', `<div class="solution-actions"><button class="primary">Validar e aprender</button><button class="secondary">Manter no histórico</button></div>`);
+    const [approve, keep] = message.querySelectorAll('button');
+    approve.onclick = async () => { approve.disabled = true; try { const result = await api('/api/approve',{method:'POST',body:JSON.stringify({attempt_id:data.attempt_id})}); addMessage(result.message); refresh(); } catch(error) { addMessage(error.message); } };
+    keep.onclick = () => { keep.disabled = true; addMessage('Certo. A descoberta permanece somente no histórico.'); };
+    return;
+  }
+  if (data.source === 'github_gap') return;
   message.querySelector('div').insertAdjacentHTML('beforeend', `<div class="solution-actions"><button class="secondary">Testar esta solução</button></div>`);
   message.querySelector('button').onclick = () => testDialog(data.attempt_id);
 }
@@ -48,7 +55,7 @@ async function refresh() {
   $('#knowledge').innerHTML = state.knowledge.length ? state.knowledge.map(item => `<div class="list-item">${escapeHtml(item.title)}<small>${item.success_count} validação(ões)</small></div>`).join('') : '<p class="muted">Nenhum conhecimento permanente.</p>';
   const maturity = state.maturity;
   const review = maturity.ready_to_review_routine ? '<p class="maturity-ready">Base madura: revise o uso do Terra.</p>' : '<p class="muted">Acompanhe antes de mudar o roteamento.</p>';
-  $('#maturity').innerHTML = `<div class="list-item"><strong>${maturity.local_rate}%</strong><small>resolvidas pela própria base</small></div><div class="list-item"><strong>${maturity.local_solutions}</strong><small>soluções locais · ${maturity.external_consultations} consultas externas</small></div>${review}`;
+  $('#maturity').innerHTML = `<div class="list-item"><strong>${maturity.local_rate}%</strong><small>resolvidas pela própria base</small></div><div class="list-item"><strong>${maturity.knowledge_count}</strong><small>conhecimento(s) validado(s) · ${maturity.verified_attempts} validação(ões)</small></div><div class="list-item"><strong>${maturity.local_solutions}</strong><small>soluções locais · ${maturity.external_consultations} consultas externas</small></div>${review}`;
   $('#history').innerHTML = state.history.length ? state.history.map(item => `<div class="list-item">${escapeHtml(item.prompt)}<small>${item.source} · ${item.status}</small></div>`).join('') : '<p class="muted">Nenhuma tentativa ainda.</p>';
 }
 async function startSession() {
