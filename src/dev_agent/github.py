@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -38,7 +39,10 @@ class GitHubAppClient:
         repositories = self._request("/installation/repositories?per_page=100", token).get("repositories", [])
         project_hint = _project_hint(prompt)
         if project_hint:
-            repositories = [repo for repo in repositories if project_hint in repo["name"].lower()]
+            matched_repositories = [repo for repo in repositories if project_hint in repo["name"].lower()]
+            # Um apelido local não deve impedir a busca nos demais projetos autorizados.
+            if matched_repositories:
+                repositories = matched_repositories
         matches: list[RepositoryFile] = []
         for repo in repositories:
             tree = self._request(f"/repos/{repo['full_name']}/git/trees/{quote(repo['default_branch'], safe='')}?recursive=1", token)
@@ -92,8 +96,11 @@ class GitHubAppClient:
 
 
 def _project_hint(prompt: str) -> str:
+    explicit = re.search(r"(?:projeto|reposit[óo]rio)\s+([a-zA-Z0-9_-]+)", prompt, flags=re.IGNORECASE)
+    if explicit:
+        return explicit.group(1).lower()
     words = ["".join(char for char in word.lower() if char.isalnum() or char in "-_") for word in prompt.split()]
-    ignored = {"arquivo", "projeto", "localize", "localizar", "encontre", "encontrar", "quero", "preciso", "que", "tenha", "com", "para", "pro", "por", "traducao", "ingles", "somente", "mude", "nada"}
+    ignored = {"arquivo", "arquivos", "projeto", "localize", "localizar", "encontre", "encontrar", "quero", "preciso", "que", "tenha", "com", "para", "pro", "por", "traducao", "ingles", "somente", "mude", "nada"}
     candidates = [word for word in words if len(word) >= 4 and word not in ignored]
     return candidates[0] if candidates else ""
 
