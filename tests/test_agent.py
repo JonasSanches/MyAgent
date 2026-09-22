@@ -14,7 +14,7 @@ from dev_agent.config import Config
 from dev_agent.core import PersonalDevAgent
 from dev_agent.server import AgentWebService
 from dev_agent.github import RepositoryFile
-from dev_agent.github import _content_terms, _project_hint
+from dev_agent.github import _content_terms, _project_hint, _translation_confidence
 from dev_agent.security import redact_secrets
 
 
@@ -210,6 +210,11 @@ class AgentTest(unittest.TestCase):
 
     def test_translation_request_uses_content_search_terms(self):
         self.assertIn("i18n", _content_terms("Localize tradução para inglês"))
+
+    def test_translation_candidate_with_portuguese_and_english_is_ranked_high(self):
+        score, reason = _translation_confidence("locales/en.json", '{"en": "English", "pt-BR": "Português"}')
+        self.assertGreaterEqual(score, 90)
+        self.assertIn("inglês", reason)
 
 
 if __name__ == "__main__":

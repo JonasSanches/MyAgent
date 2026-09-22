@@ -16,6 +16,9 @@ class RepositoryFile:
     repository: str
     path: str
     url: str
+    branch: str = "main"
+    confidence: int = 0
+    reason: str = ""
 
 
 class GitHubAppClient:
@@ -57,10 +60,10 @@ class GitHubAppClient:
             for item in tree.get("tree", []):
                 path = item.get("path", "")
                 if item.get("type") == "blob" and _matches(path, prompt):
-                    matches.append(RepositoryFile(repo["full_name"], path, f"{repo['html_url']}/blob/{repo['default_branch']}/{path}"))
+                    matches.append(RepositoryFile(repo["full_name"], path, f"{repo['html_url']}/blob/{repo['default_branch']}/{path}", repo["default_branch"]))
                     if len(matches) >= limit:
-                        return matches
-        return matches
+                        return self._rank_translation_candidates(matches, token, prompt)
+        return self._rank_translation_candidates(matches, token, prompt)
 
     def _search_code(self, repo: dict[str, Any], token: str, prompt: str) -> list[RepositoryFile]:
         """Pesquisa conteúdo e caminho; a árvore abaixo continua como fallback."""
@@ -74,8 +77,22 @@ class GitHubAppClient:
                 self.last_diagnostics.append(f"{repo['full_name']}: pesquisa de conteúdo indisponível ({error}).")
                 continue
             for item in response.get("items", []):
-                matches.append(RepositoryFile(repo["full_name"], item["path"], item["html_url"]))
+                matches.append(RepositoryFile(repo["full_name"], item["path"], item["html_url"], repo["default_branch"]))
         return matches
+
+    def _rank_translation_candidates(self, files: list[RepositoryFile], token: str, prompt: str) -> list[RepositoryFile]:
+        if not any(word in prompt.lower() for word in ("trad", "ingl", "english", "idioma", "locale")):
+            return files
+        ranked: list[RepositoryFile] = []
+        for item in files[:12]:
+            try:
+                response = self._request(f"/repos/{item.repository}/contents/{quote(item.path, safe='/')}?ref={quote(item.branch, safe='')}", token)
+                raw_content = base64.b64decode(response.get("content", "")).decode("utf-8", errors="ignore")
+            except (RuntimeError, ValueError, TypeError):
+                raw_content = ""
+            confidence, reason = _translation_confidence(item.path, raw_content)
+            ranked.append(RepositoryFile(item.repository, item.path, item.url, item.branch, confidence, reason))
+        return sorted(ranked, key=lambda item: item.confidence, reverse=True)
 
     def _installation_token(self) -> str:
         try:
@@ -143,3 +160,21 @@ def _content_terms(prompt: str) -> list[str]:
     if any(word in normalized for word in ("trad", "ingl", "english", "idioma", "locale")):
         return ["translation", "traducao", "i18n", "locale", "english", "pt-br", "en-us"]
     return [word for word in normalized.split() if len(word) >= 4][:5]
+
+
+def _translation_confidence(path: str, content: str) -> tuple[int, str]:
+    path_lower, text = path.lower(), content.lower()
+    score, signals = 0, []
+    if any(marker in path_lower for marker in ("/en.", "/en/", "english", "locale", "i18n", "translation", "traducao")):
+        score += 35
+        signals.append("caminho de localização")
+    if any(marker in text for marker in ('"en"', "'en'", "en-us", "en_gb", "english")):
+        score += 40
+        signals.append("referência ao inglês")
+    if any(marker in text for marker in ("pt-br", "pt_br", "portuguese", "portugues")):
+        score += 20
+        signals.append("referência ao português")
+    if any(marker in text for marker in ("translation", "translations", "i18n", "locale")):
+        score += 15
+        signals.append("estrutura de tradução")
+    return min(score, 100), ", ".join(signals) or "nome/caminho correspondente"

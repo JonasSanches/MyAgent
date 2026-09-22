@@ -115,6 +115,8 @@ O painel também mede maturidade: taxa de soluções reutilizadas da própria ba
 
 O agente pode usar uma GitHub App instalada na sua conta para descobrir repositórios e localizar arquivos sem chamar modelo nem gastar créditos. A primeira fase é estritamente somente-leitura: `Metadata: Read` e `Contents: Read`. Configure no Render `GITHUB_APP_ID` e `GITHUB_APP_PRIVATE_KEY_B64` como secrets. A chave privada deve ser codificada em Base64 antes de ser salva como secret. `GITHUB_APP_INSTALLATION_ID` é opcional e só é usado quando a App tiver mais de uma instalação. A instalação da App pode abranger todos os repositórios da sua conta; nenhum acesso de escrita é solicitado nesta fase.
 
+Para pedidos sobre tradução, os candidatos são ordenados por evidências verificáveis do próprio arquivo: caminho de localização, referências a inglês, português e estruturas i18n. Essa análise usa somente a leitura autorizada do GitHub; não consulta modelos externos.
+
 ## Arquitetura
 
 - `core.py`: orquestra memória, habilidades, orçamento e Codex.
