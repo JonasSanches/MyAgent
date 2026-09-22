@@ -175,10 +175,13 @@ def _is_translation_request(prompt: str) -> bool:
 
 
 def _text_source_directories(repo: dict[str, Any], tree: list[dict[str, Any]]) -> list[RepositoryFile]:
-    """Agrupa diretórios que normalmente concentram textos exibidos na interface."""
-    extensions = {".ts", ".tsx", ".js", ".jsx", ".vue", ".svelte", ".html", ".php", ".py", ".rb", ".json"}
-    markers = ("/src/", "/app/", "/pages/", "/components/", "/views/", "/templates/", "/resources/", "/web/")
-    ignored = ("node_modules/", "/public/", "/assets/", "/images/", "/pdf-", "/vendor/")
+    """Agrupa qualquer diretório com código/texto, mesmo sem convenções de framework."""
+    extensions = {
+        ".ts", ".tsx", ".js", ".jsx", ".vue", ".svelte", ".html", ".htm", ".php", ".py", ".rb",
+        ".java", ".kt", ".go", ".cs", ".json", ".yaml", ".yml", ".xml", ".md", ".txt", ".css", ".scss",
+        ".sql", ".twig", ".blade.php", ".cshtml", ".ejs", ".hbs",
+    }
+    ignored = ("node_modules/", "/public/", "/assets/", "/images/", "/pdf-", "/vendor/", "/dist/", "/build/", "/coverage/")
     directories: dict[str, int] = {}
     for item in tree:
         path = item.get("path", "")
@@ -187,16 +190,16 @@ def _text_source_directories(repo: dict[str, Any], tree: list[dict[str, Any]]) -
             continue
         if not any(lower.endswith(extension) for extension in extensions):
             continue
-        if not any(marker in f"/{lower}" for marker in markers):
-            continue
         parts = path.split("/")
-        directory = "/".join(parts[:min(len(parts) - 1, 3)])
-        if directory:
-            directories[directory] = directories.get(directory, 0) + 1
+        # Agrupar no máximo três níveis deixa o resultado navegável, sem exigir
+        # a convenção src/pages/components do framework usado pelo projeto.
+        directory = "/".join(parts[:min(len(parts) - 1, 3)]) or "."
+        directories[directory] = directories.get(directory, 0) + 1
     ordered = sorted(directories.items(), key=lambda item: (-item[1], item[0]))
     return [
         RepositoryFile(
-            repo["full_name"], directory + "/", f"{repo['html_url']}/tree/{repo['default_branch']}/{directory}",
+            repo["full_name"], (directory + "/") if directory != "." else "./",
+            f"{repo['html_url']}/tree/{repo['default_branch']}" + (f"/{directory}" if directory != "." else ""),
             repo["default_branch"], min(80, 30 + count * 3), f"{count} arquivos de código que podem carregar textos da interface", "directory",
         )
         for directory, count in ordered

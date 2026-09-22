@@ -231,6 +231,11 @@ class AgentTest(unittest.TestCase):
         self.assertEqual(directories[0].path, "apps/web/src/")
         self.assertEqual(directories[0].kind, "directory")
 
+    def test_source_map_does_not_require_src_or_components_conventions(self):
+        repo = {"full_name": "ariane/vendamais", "html_url": "https://github.com/ariane/vendamais", "default_branch": "main"}
+        directories = _text_source_directories(repo, [{"type": "blob", "path": "site/conteudo/home.html"}])
+        self.assertEqual(directories[0].path, "site/conteudo/")
+
 
 if __name__ == "__main__":
     unittest.main()
